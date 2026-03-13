@@ -8207,14 +8207,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 423b884c8ee95e54294a916d9c668efd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Enemy
-  baseSpeed: 3
+  patrolSpeed: 3.5
+  chaseSpeed: 6
+  rushDistance: 4
+  rushMultiplier: 1.4
   immuneToTimeFreeze: 0
   patrolPoints:
   - {fileID: 1366862120}
   - {fileID: 1587674405}
-  detectionRange: 20
-  detectionAngle: 180
+  patrolWaitTime: 1.5
+  alertRange: 12
+  chaseRange: 18
   shootRange: 12
+  backupDistance: 3
+  visionAngle: 90
+  awarenessRange: 15
+  investigateTime: 4
   enemyBulletPrefab: {fileID: 8434288619116344563, guid: 9612244122ab186458068f32c18c8553, type: 3}
   shootPoint: {fileID: 209778839}
   shootCooldown: 2
@@ -8349,7 +8357,7 @@ GameObject:
   - component: {fileID: 1228720123}
   - component: {fileID: 1228720126}
   - component: {fileID: 1228720125}
-  - component: {fileID: 1228720124}
+  - component: {fileID: 1228720127}
   m_Layer: 0
   m_Name: TorchLight
   m_TagString: Untagged
@@ -8372,22 +8380,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1570340096}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1228720124
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1228720122}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7e1cdcbcd1d2afe4c913888402e26888, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TorchFlicker
-  baseIntensity: 2.5
-  baseRange: 10
-  intensityVariance: 0.4
-  flickerSpeed: 3
 --- !u!114 &1228720125
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8427,7 +8419,7 @@ Light:
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 2
-  m_Color: {r: 0.9098039, g: 0.5294118, b: 0.22745098, a: 1}
+  m_Color: {r: 0.93962264, g: 0.9365071, b: 0.48754, a: 1}
   m_Intensity: 2.5
   m_Range: 10
   m_SpotAngle: 30
@@ -8482,6 +8474,26 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &1228720127
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1228720122}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7d5498a929941254f9ecfa7c2200fe3a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TorchLight
+  baseRadius: 5
+  baseIntensity: 2.5
+  flickerSpeed: 3
+  intensityVariance: 0.4
+  radiusVariance: 0.08
+  showZone: 1
+  safeZoneColor: {r: 0.4862745, g: 0.9882354, b: 0, a: 1}
+  dangerZoneColor: {r: 0.2941177, g: 0, b: 0.509804, a: 1}
 --- !u!1 &1366862119
 GameObject:
   m_ObjectHideFlags: 0
@@ -8809,9 +8821,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LightExposureCalculator
   lightExposure: 0
-  shadowCasterLayers:
+  wallLayers:
     serializedVersion: 2
     m_Bits: 64
+  exposureSmoothing: 8
 --- !u!114 &1815387988
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8851,13 +8864,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerController
   moveSpeed: 6
-  jumpForce: 5
-  mouseSensitivity: 2
+  groundDrag: 9
+  airDrag: 1.5
+  airMultiplier: 0.5
+  jumpForce: 10
+  fallMultiplier: 4.5
+  lowJumpMultiplier: 3
+  coyoteTime: 0.15
+  jumpBufferTime: 0.15
   groundCheck: {fileID: 642589256}
   groundDistance: 0.4
   groundMask:
     serializedVersion: 2
     m_Bits: 64
+  mouseSensitivity: 2
+  lookSmoothing: 15
+  bobFrequency: 2.5
+  bobAmplitude: 0.055
+  bobSmoothing: 12
+  tiltAmount: 2.5
+  tiltSmoothing: 8
+  landingDipAmount: 0.12
+  landingRecoverySpeed: 8
   cameraHolder: {fileID: 1441821450}
 --- !u!54 &1815387991
 Rigidbody:
@@ -8893,7 +8921,7 @@ CapsuleCollider:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1815387986}
-  m_Material: {fileID: 0}
+  m_Material: {fileID: 13400000, guid: 62d8413479044d5439264ad16ae33ae9, type: 2}
   m_IncludeLayers:
     serializedVersion: 2
     m_Bits: 0

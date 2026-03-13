@@ -54,22 +54,41 @@ public class FrozenBullet : MonoBehaviour
     {
         if (hasHit) return;
 
+        // Player bullet hits enemy
         if (!isEnemyBullet && other.CompareTag("Enemy"))
         {
             hasHit = true;
-            other.GetComponent<Enemy>()?.Die();
+            Security enemy = other.GetComponent<Security>();
+            if (enemy != null)
+                enemy.Die();
+            else
+                Debug.LogWarning("Hit Enemy tag but no Enemy script found");
             DestroyBullet();
             return;
         }
 
+        // Enemy bullet hits player — GAME OVER
         if (isEnemyBullet && other.CompareTag("Player"))
         {
             hasHit = true;
-            FindFirstObjectByType<PlayerDeath>()?.Die();
+            Debug.Log("Enemy bullet hit player");
+
+            PlayerDeath pd = other.GetComponent<PlayerDeath>();
+            if (pd != null)
+            {
+                Debug.Log("Calling PlayerDeath.Die()");
+                pd.Die();
+            }
+            else
+            {
+                Debug.LogError("PlayerDeath script not found on Player!");
+            }
+
             DestroyBullet();
             return;
         }
 
+        // Hit environment
         if (other.CompareTag("Environment"))
         {
             hasHit = true;

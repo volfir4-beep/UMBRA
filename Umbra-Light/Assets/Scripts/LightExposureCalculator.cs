@@ -2,74 +2,73 @@ using UnityEngine;
 
 public class LightExposureCalculator : MonoBehaviour
 {
-    public float lightExposure;
-    public LayerMask shadowCasterLayers;
+    [Header("Output")]
+    public float lightExposure; // 0 = shadow, 1 = light
 
-    private Light[] allLights;
+    [Header("Settings")]
+    public LayerMask wallLayers; // Set to Environment layer
+    public float exposureSmoothing = 8f; // How fast exposure transitions
 
-    private Vector3[] rayOffsets = new Vector3[]
-    {
-        new Vector3(0, 0.1f, 0),
-        new Vector3(0, 0.5f, 0),
-        new Vector3(0, 1.0f, 0),
-        new Vector3(0, 1.5f, 0),
-        new Vector3(0, 1.8f, 0),
-        new Vector3(0.3f, 1.0f, 0),
-        new Vector3(-0.3f, 1.0f, 0),
-        new Vector3(0, 1.0f, 0.3f)
-    };
-
-    void Start()
-    {
-        allLights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
-    }
+    // All torches register themselves here
+    private System.Collections.Generic.List<TorchLight> allTorches
+        = new System.Collections.Generic.List<TorchLight>();
 
     void Update()
     {
-        CalculateExposure();
+        float targetExposure = CalculateExposure();
+
+        // Smooth transition instead of instant snap
+        lightExposure = Mathf.Lerp(
+            lightExposure,
+            targetExposure,
+            Time.deltaTime * exposureSmoothing);
     }
 
-    void CalculateExposure()
+    float CalculateExposure()
     {
-        int hitRays = 0;
-        int totalRays = 0;
+        Vector3 playerPos = transform.position + Vector3.up;
 
-        foreach (Light light in allLights)
+        foreach (TorchLight torch in allTorches)
         {
-            if (!light.enabled) continue;
-            if (light.intensity < 0.05f) continue;
+            if (torch == null) continue;
+            if (!torch.isActiveAndEnabled) continue;
 
-            foreach (Vector3 offset in rayOffsets)
+            // Check 1 — is player inside this torch sphere?
+            float dist = Vector3.Distance(
+                playerPos, torch.transform.position);
+
+            if (dist > torch.GetRadius()) continue;
+
+            // Check 2 — is there a wall between torch and player?
+            Vector3 direction = playerPos - torch.transform.position;
+
+            bool wallBlocking = Physics.Raycast(
+                torch.transform.position,
+                direction.normalized,
+                direction.magnitude,
+                wallLayers);
+
+            if (!wallBlocking)
             {
-                Vector3 rayStart = transform.position + offset;
-                Vector3 toLight = light.transform.position - rayStart;
-                float dist = toLight.magnitude;
-
-                totalRays++;
-
-                if (dist > light.range) continue;
-
-                bool blocked = Physics.Raycast(
-                    rayStart,
-                    toLight.normalized,
-                    dist,
-                    shadowCasterLayers
-                );
-
-                if (!blocked)
-                {
-                    float brightness = (1f - dist / light.range) * light.intensity;
-                    if (brightness > 0.1f) hitRays++;
-                }
+                // Player is inside torch sphere with no wall blocking
+                // = player is in light
+                return 1f;
             }
         }
 
-        float raw = totalRays > 0 ? (float)hitRays / totalRays : 0f;
-        lightExposure = Mathf.Lerp(lightExposure, raw, Time.deltaTime * 10f);
+        // No torch reached player
+        return 0f;
     }
 
-    public void RefreshLights()
+    // Torches call this when they spawn
+    public void RegisterTorch(TorchLight torch)
     {
-        allLights = Object.FindObjectsByType<Light>(FindObjectsSortMode.None);
+        if (!allTorches.Contains(torch))
+            allTorches.Add(torch);
+    }
+
+    public void UnregisterTorch(TorchLight torch)
+    {
+        allTorches.Remove(torch);
     }
 }
