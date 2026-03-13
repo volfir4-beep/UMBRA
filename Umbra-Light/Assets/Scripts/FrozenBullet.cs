@@ -1,4 +1,9 @@
+﻿using NUnit.Framework;
+using Unity.VisualScripting;
+using Unity.VisualScripting.Antlr3.Runtime.Tree;
 using UnityEngine;
+using UnityEngine.ProBuilder.Shapes;
+using static UnityEngine.UIElements.UxmlAttributeDescription;
 
 public class FrozenBullet : MonoBehaviour
 {
@@ -14,20 +19,27 @@ public class FrozenBullet : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         rb.useGravity = false;
-        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        rb.collisionDetectionMode =
+            CollisionDetectionMode.ContinuousDynamic;
 
         travelDirection = transform.forward;
         rb.linearVelocity = travelDirection * bulletSpeed;
 
-        Destroy(gameObject, 15f);
+        // Shorter lifetime — bullets disappear in 4 seconds
+        Destroy(gameObject, 4f);
     }
 
     void Update()
     {
-        float timeScale = WorldTimeController.Instance.worldTimeScale;
+        if (hasHit) return;
+
+        float timeScale = WorldTimeController.Instance != null
+            ? WorldTimeController.Instance.worldTimeScale
+            : 1f;
 
         if (timeScale < 0.05f)
         {
+            // Freeze bullet
             if (!isFrozen)
             {
                 rb.linearVelocity = Vector3.zero;
@@ -37,18 +49,25 @@ public class FrozenBullet : MonoBehaviour
         }
         else
         {
+            // Unfreeze bullet
             if (isFrozen)
             {
                 rb.isKinematic = false;
-                rb.linearVelocity = travelDirection * bulletSpeed * timeScale;
+                rb.linearVelocity =
+                    travelDirection * bulletSpeed * timeScale;
                 isFrozen = false;
             }
             else
             {
-                rb.linearVelocity = travelDirection * bulletSpeed * timeScale;
+                rb.linearVelocity =
+                    travelDirection * bulletSpeed * timeScale;
             }
         }
     }
+
+    // ─────────────────────────────────────────
+    // TRIGGER — Catches Player and Enemy hits
+    // ─────────────────────────────────────────
 
     void OnTriggerEnter(Collider other)
     {
@@ -61,13 +80,11 @@ public class FrozenBullet : MonoBehaviour
             Security enemy = other.GetComponent<Security>();
             if (enemy != null)
                 enemy.Die();
-            else
-                Debug.LogWarning("Hit Enemy tag but no Enemy script found");
             DestroyBullet();
             return;
         }
 
-        // Enemy bullet hits player � GAME OVER
+        // Enemy bullet hits player
         if (isEnemyBullet && other.CompareTag("Player"))
         {
             hasHit = true;
@@ -75,20 +92,15 @@ public class FrozenBullet : MonoBehaviour
 
             PlayerDeath pd = other.GetComponent<PlayerDeath>();
             if (pd != null)
-            {
-                Debug.Log("Calling PlayerDeath.Die()");
                 pd.Die();
-            }
             else
-            {
-                Debug.LogError("PlayerDeath script not found on Player!");
-            }
+                Debug.LogError("No PlayerDeath on Player object");
 
             DestroyBullet();
             return;
         }
 
-        // Hit environment
+        // Either bullet hits environment via trigger
         if (other.CompareTag("Environment"))
         {
             hasHit = true;
@@ -96,10 +108,48 @@ public class FrozenBullet : MonoBehaviour
         }
     }
 
+    // ─────────────────────────────────────────
+    // COLLISION — Catches Wall hits reliably
+    // This fires when bullet physically hits
+    // a solid non-trigger collider like a wall
+    // ─────────────────────────────────────────
+
+    void OnCollisionEnter(Collision collision)
+    {
+        if (hasHit) return;
+
+        // Hit a wall or floor
+        if (collision.gameObject.CompareTag("Environment"))
+        {
+            hasHit = true;
+            DestroyBullet();
+            return;
+        }
+
+        // Safety net — if bullet hits anything solid
+        // that isn't a player or enemy, destroy it
+        if (!collision.gameObject.CompareTag("Player") &&
+            !collision.gameObject.CompareTag("Enemy"))
+        {
+            hasHit = true;
+            DestroyBullet();
+        }
+    }
+
+    // ─────────────────────────────────────────
+    // DESTROY
+    // ─────────────────────────────────────────
+
     void DestroyBullet()
     {
+        // Tell PlayerShooting the bullet is gone
         if (!isEnemyBullet)
-            FindFirstObjectByType<PlayerShooting>()?.BulletDestroyed();
+        {
+            PlayerShooting ps =
+                FindFirstObjectByType<PlayerShooting>();
+            ps?.BulletDestroyed();
+        }
+
         Destroy(gameObject);
     }
 }
