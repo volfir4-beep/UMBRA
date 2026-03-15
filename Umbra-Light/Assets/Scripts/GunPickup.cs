@@ -2,31 +2,73 @@ using UnityEngine;
 
 public class GunPickup : MonoBehaviour
 {
-    private bool playerInRange = false;
+    [Header("Settings")]
+    public float pickupRange = 2.5f;
+    public KeyCode pickupKey = KeyCode.E;
+
+    private Transform player;
     private PlayerShooting playerShooting;
+    private bool pickedUp = false;
 
-    void OnTriggerEnter(Collider other)
+    void Start()
     {
-        if (other.CompareTag("Player"))
+        GameObject playerObj =
+            GameObject.FindGameObjectWithTag("Player");
+
+        if (playerObj != null)
         {
-            playerInRange = true;
-            playerShooting = other.GetComponent<PlayerShooting>();
-            Debug.Log("Press E to pick up gun");
-        }
-    }
+            player = playerObj.transform;
 
-    void OnTriggerExit(Collider other)
-    {
-        if (other.CompareTag("Player"))
-            playerInRange = false;
+            // PlayerShooting is on Player root object
+            // Same object that has PlayerController
+            // and PlayerDeath — all on Player root
+            playerShooting =
+                playerObj.GetComponent<PlayerShooting>();
+
+            if (playerShooting == null)
+                Debug.LogError("GunPickup: No PlayerShooting " +
+                    "found on Player object");
+        }
+        else
+        {
+            Debug.LogError("GunPickup: Cannot find Player tag");
+        }
     }
 
     void Update()
     {
-        if (playerInRange && Input.GetKeyDown(KeyCode.E))
+        if (pickedUp) return;
+        if (player == null) return;
+
+        float dist = Vector3.Distance(
+            transform.position, player.position);
+
+        if (dist <= pickupRange &&
+            Input.GetKeyDown(pickupKey))
         {
-            playerShooting.PickUpGun();
-            Destroy(gameObject);
+            PickUp();
         }
+    }
+
+    void PickUp()
+    {
+        if (playerShooting == null) return;
+
+        pickedUp = true;
+
+        // Calls PickUpGun() which already exists
+        // in your PlayerShooting.cs
+        // Sets hasGun = true
+        // Sets currentBullets = maxBullets
+        playerShooting.PickUpGun();
+
+        Debug.Log("Gun picked up");
+        Destroy(gameObject);
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, pickupRange);
     }
 }
