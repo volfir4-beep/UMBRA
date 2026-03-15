@@ -3588,9 +3588,10 @@ GameObject:
   - component: {fileID: 546315270}
   - component: {fileID: 546315269}
   - component: {fileID: 546315272}
-  m_Layer: 0
+  - component: {fileID: 546315273}
+  m_Layer: 11
   m_Name: SM_ShootingTarget_01 (4)
-  m_TagString: Untagged
+  m_TagString: Target
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -3689,6 +3690,21 @@ MeshCollider:
   m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: -1893164800261972432, guid: e5c85f691f4ddb34383878362e9a4dc1, type: 3}
+--- !u!114 &546315273
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 546315268}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12e04f4b90a89aa40b6eb987dd2465d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TargetBoard
+  breakForce: 3
+  destroyDelay: 2
+  hitParticle: {fileID: 0}
 --- !u!1 &562983667
 GameObject:
   m_ObjectHideFlags: 0
@@ -4066,9 +4082,10 @@ GameObject:
   - component: {fileID: 808059080}
   - component: {fileID: 808059079}
   - component: {fileID: 808059082}
-  m_Layer: 0
+  - component: {fileID: 808059083}
+  m_Layer: 11
   m_Name: SM_ShootingTarget_01 (1)
-  m_TagString: Untagged
+  m_TagString: Target
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -4167,6 +4184,21 @@ MeshCollider:
   m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: -1893164800261972432, guid: e5c85f691f4ddb34383878362e9a4dc1, type: 3}
+--- !u!114 &808059083
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 808059078}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12e04f4b90a89aa40b6eb987dd2465d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TargetBoard
+  breakForce: 3
+  destroyDelay: 2
+  hitParticle: {fileID: 0}
 --- !u!1 &817438153
 GameObject:
   m_ObjectHideFlags: 0
@@ -4179,9 +4211,10 @@ GameObject:
   - component: {fileID: 817438155}
   - component: {fileID: 817438154}
   - component: {fileID: 817438157}
-  m_Layer: 0
+  - component: {fileID: 817438158}
+  m_Layer: 11
   m_Name: SM_ShootingTarget_01 (3)
-  m_TagString: Untagged
+  m_TagString: Target
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -4280,6 +4313,21 @@ MeshCollider:
   m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: -1893164800261972432, guid: e5c85f691f4ddb34383878362e9a4dc1, type: 3}
+--- !u!114 &817438158
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 817438153}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12e04f4b90a89aa40b6eb987dd2465d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TargetBoard
+  breakForce: 3
+  destroyDelay: 2
+  hitParticle: {fileID: 0}
 --- !u!1 &859168124
 GameObject:
   m_ObjectHideFlags: 0
@@ -5629,6 +5677,10 @@ PrefabInstance:
       propertyPath: m_Material
       value: 
       objectReference: {fileID: 13400000, guid: 62d8413479044d5439264ad16ae33ae9, type: 2}
+    - target: {fileID: 9028177915086487133, guid: 57eb40adbebe8794eb63ec46410908c7, type: 3}
+      propertyPath: wallLayers.m_Bits
+      value: 64
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -6574,6 +6626,7 @@ GameObject:
   - component: {fileID: 4000010788924577}
   - component: {fileID: 198000014585988989}
   - component: {fileID: 199000010539788471}
+  - component: {fileID: 199000010539788472}
   m_Layer: 0
   m_Name: Dust_v1
   m_TagString: Untagged
@@ -11684,6 +11737,18 @@ ParticleSystemRenderer:
   m_MeshWeighting1: 1
   m_MeshWeighting2: 1
   m_MeshWeighting3: 1
+--- !u!114 &199000010539788472
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1000013524736459}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8871d23a80801e4e8491fa0627dd88e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FrozenParticle
 --- !u!1 &324946936522110259
 GameObject:
   m_ObjectHideFlags: 0
@@ -11783,9 +11848,10 @@ GameObject:
   - component: {fileID: 3977323694219579603}
   - component: {fileID: 1213365620165518361}
   - component: {fileID: 3977323694219579604}
-  m_Layer: 0
+  - component: {fileID: 3977323694219579605}
+  m_Layer: 11
   m_Name: SM_ShootingTarget_01
-  m_TagString: Untagged
+  m_TagString: Target
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -12546,6 +12612,21 @@ MeshCollider:
   m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: -1893164800261972432, guid: e5c85f691f4ddb34383878362e9a4dc1, type: 3}
+--- !u!114 &3977323694219579605
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 852941654356428236}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 12e04f4b90a89aa40b6eb987dd2465d8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TargetBoard
+  breakForce: 3
+  destroyDelay: 2
+  hitParticle: {fileID: 0}
 --- !u!4 &4163522148360779795
 Transform:
   m_ObjectHideFlags: 0

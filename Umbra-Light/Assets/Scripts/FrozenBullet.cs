@@ -16,23 +16,12 @@ public class FrozenBullet : MonoBehaviour
     public float maxTravelTime = 6f;
 
     private Vector3 previousPosition;
-
-    // Trail reference stored so we dont
-    // call GetComponent every frame
     private TrailRenderer trail;
-
-    // ─────────────────────────────────────────
-    // CALLED BY PLAYERSHOOTING ON SPAWN
-    // ─────────────────────────────────────────
 
     public void SetShooter(PlayerShooting ps)
     {
         shooter = ps;
     }
-
-    // ─────────────────────────────────────────
-    // SETUP
-    // ─────────────────────────────────────────
 
     void Start()
     {
@@ -51,15 +40,10 @@ public class FrozenBullet : MonoBehaviour
         SetupTrail();
     }
 
-    // ─────────────────────────────────────────
-    // UPDATE
-    // ─────────────────────────────────────────
-
     void Update()
     {
         if (hasHit) return;
 
-        // Travel timer — only counts while moving
         if (!isFrozen)
         {
             traveledTime += Time.deltaTime;
@@ -74,39 +58,27 @@ public class FrozenBullet : MonoBehaviour
 
         HandleTimeScale();
 
-        // Raycast wall check every frame
         if (!isFrozen)
             CheckWallByRaycast();
 
         previousPosition = transform.position;
-
-        // Update trail every frame
         UpdateTrail();
     }
-
-    // ─────────────────────────────────────────
-    // TRAIL SETUP
-    // ─────────────────────────────────────────
 
     void SetupTrail()
     {
         trail = gameObject.AddComponent<TrailRenderer>();
-
         trail.time = 0.15f;
 
-        // Fat at front, razor sharp at tail
         AnimationCurve widthCurve = new AnimationCurve();
         widthCurve.AddKey(0f, 0.08f);
         widthCurve.AddKey(1f, 0.0f);
         trail.widthCurve = widthCurve;
 
         Gradient gradient = new Gradient();
-
         GradientColorKey[] colorKeys = new GradientColorKey[3];
         GradientAlphaKey[] alphaKeys = new GradientAlphaKey[3];
 
-        // Player bullet = red. Enemy bullet = orange.
-        // Player reads instantly who fired what.
         if (!isEnemyBullet)
         {
             colorKeys[0].color = new Color(1f, 0.05f, 0.0f);
@@ -134,7 +106,6 @@ public class FrozenBullet : MonoBehaviour
         gradient.SetKeys(colorKeys, alphaKeys);
         trail.colorGradient = gradient;
 
-        // Additive blending — trail glows on dark backgrounds
         trail.material = new Material(
             Shader.Find("Sprites/Default"));
         trail.material.SetInt("_SrcBlend",
@@ -148,12 +119,6 @@ public class FrozenBullet : MonoBehaviour
         trail.receiveShadows = false;
     }
 
-    // ─────────────────────────────────────────
-    // TRAIL UPDATE
-    // Called every frame from Update
-    // Freezes trail when world is frozen
-    // ─────────────────────────────────────────
-
     void UpdateTrail()
     {
         if (trail == null) return;
@@ -162,25 +127,13 @@ public class FrozenBullet : MonoBehaviour
             ? WorldTimeController.Instance.worldTimeScale : 1f;
 
         if (isFrozen)
-        {
-            // Stop emitting new trail points
-            // Trail hangs perfectly still in air
             trail.emitting = false;
-        }
         else
         {
-            // Resume trail emission
             trail.emitting = true;
-
-            // Trail length scales with world speed
-            // Short at slow time, full at normal time
             trail.time = Mathf.Lerp(0.05f, 0.15f, ts);
         }
     }
-
-    // ─────────────────────────────────────────
-    // RAYCAST WALL DETECTION
-    // ─────────────────────────────────────────
 
     void CheckWallByRaycast()
     {
@@ -202,7 +155,22 @@ public class FrozenBullet : MonoBehaviour
             int layer = hit.collider.gameObject.layer;
             int envLayer = LayerMask.NameToLayer("Environment");
 
-            // Hit wall or floor
+            // ── TARGET BOARD ──────────────────────
+            // Check this BEFORE environment
+            // so board is destroyed not just stopped
+            if (!isEnemyBullet && tag == "Target")
+            {
+                hasHit = true;
+                TargetBoard tb =
+                    hit.collider.GetComponent<TargetBoard>() ??
+                    hit.collider.GetComponentInParent<TargetBoard>();
+                if (tb != null) tb.GetShot();
+                NotifyShooter();
+                Destroy(gameObject);
+                return;
+            }
+
+            // ── WALL OR FLOOR ──────────────────────
             if (tag == "Environment" || layer == envLayer)
             {
                 hasHit = true;
@@ -211,7 +179,7 @@ public class FrozenBullet : MonoBehaviour
                 return;
             }
 
-            // Player bullet hit enemy
+            // ── ENEMY ─────────────────────────────
             if (!isEnemyBullet && tag == "Enemy")
             {
                 hasHit = true;
@@ -224,7 +192,7 @@ public class FrozenBullet : MonoBehaviour
                 return;
             }
 
-            // Enemy bullet hit player
+            // ── PLAYER ────────────────────────────
             if (isEnemyBullet && tag == "Player")
             {
                 hasHit = true;
@@ -237,10 +205,6 @@ public class FrozenBullet : MonoBehaviour
             }
         }
     }
-
-    // ─────────────────────────────────────────
-    // TIME SCALE
-    // ─────────────────────────────────────────
 
     void HandleTimeScale()
     {
@@ -273,13 +237,22 @@ public class FrozenBullet : MonoBehaviour
         }
     }
 
-    // ─────────────────────────────────────────
-    // TRIGGER — backup for enemy and player hits
-    // ─────────────────────────────────────────
-
     void OnTriggerEnter(Collider other)
     {
         if (hasHit) return;
+
+        // Target board via trigger
+        if (!isEnemyBullet && other.CompareTag("Target"))
+        {
+            hasHit = true;
+            TargetBoard tb =
+                other.GetComponent<TargetBoard>() ??
+                other.GetComponentInParent<TargetBoard>();
+            if (tb != null) tb.GetShot();
+            NotifyShooter();
+            Destroy(gameObject);
+            return;
+        }
 
         if (!isEnemyBullet && other.CompareTag("Enemy"))
         {
@@ -312,10 +285,6 @@ public class FrozenBullet : MonoBehaviour
         }
     }
 
-    // ─────────────────────────────────────────
-    // NOTIFY SHOOTER
-    // ─────────────────────────────────────────
-
     void NotifyShooter()
     {
         if (!isEnemyBullet && shooter != null)
@@ -324,10 +293,6 @@ public class FrozenBullet : MonoBehaviour
             shooter = null;
         }
     }
-
-    // ─────────────────────────────────────────
-    // ONDESTROY — final safety net
-    // ─────────────────────────────────────────
 
     void OnDestroy()
     {
