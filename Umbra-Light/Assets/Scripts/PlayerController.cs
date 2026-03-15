@@ -74,6 +74,8 @@ public class PlayerController : MonoBehaviour
     private float targetYRotation = 0f;
     private Vector3 cameraDefaultLocalPos;
 
+    private Animator animator;
+
     // ─────────────────────────────────────────
     // SETUP
     // ─────────────────────────────────────────
@@ -84,6 +86,7 @@ public class PlayerController : MonoBehaviour
         rb.freezeRotation = true;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+        animator = GetComponent<Animator>();
 
         // Store camera default position for bob reference
         if (cameraHolder != null)
