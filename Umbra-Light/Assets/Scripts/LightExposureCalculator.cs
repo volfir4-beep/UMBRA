@@ -3,72 +3,106 @@ using UnityEngine;
 public class LightExposureCalculator : MonoBehaviour
 {
     [Header("Output")]
-    public float lightExposure; // 0 = shadow, 1 = light
+    public float lightExposure;
 
     [Header("Settings")]
-    public LayerMask wallLayers; // Set to Environment layer
-    public float exposureSmoothing = 8f; // How fast exposure transitions
+    public LayerMask wallLayers;
+    public float exposureSmoothing = 8f;
 
-    // All torches register themselves here
-    private System.Collections.Generic.List<TorchLight> allTorches
-        = new System.Collections.Generic.List<TorchLight>();
+    [Header("Debug")]
+    public bool showDebugLogs = false;
+
+    private Light[] allLights;
+
+    void Start()
+    {
+        RefreshLights();
+    }
 
     void Update()
     {
-        float targetExposure = CalculateExposure();
+        float target = CalculateExposure();
 
-        // Smooth transition instead of instant snap
         lightExposure = Mathf.Lerp(
             lightExposure,
-            targetExposure,
+            target,
             Time.deltaTime * exposureSmoothing);
     }
 
     float CalculateExposure()
     {
-        Vector3 playerPos = transform.position + Vector3.up;
+        Vector3 playerPos =
+            transform.position + Vector3.up * 0.9f;
 
-        foreach (TorchLight torch in allTorches)
+        foreach (Light light in allLights)
         {
-            if (torch == null) continue;
-            if (!torch.isActiveAndEnabled) continue;
+            if (light == null) continue;
+            if (!light.enabled) continue;
+            if (!light.gameObject.activeInHierarchy) continue;
+            if (light.intensity < 0.05f) continue;
 
-            // Check 1 — is player inside this torch sphere?
-            float dist = Vector3.Distance(
-                playerPos, torch.transform.position);
+            if (!IsPlayerInLightRange(light, playerPos))
+                continue;
 
-            if (dist > torch.GetRadius()) continue;
-
-            // Check 2 — is there a wall between torch and player?
-            Vector3 direction = playerPos - torch.transform.position;
+            Vector3 lightPos = light.transform.position;
+            Vector3 direction = playerPos - lightPos;
+            float distance = direction.magnitude;
 
             bool wallBlocking = Physics.Raycast(
-                torch.transform.position,
+                lightPos,
                 direction.normalized,
-                direction.magnitude,
+                distance,
                 wallLayers);
 
             if (!wallBlocking)
             {
-                // Player is inside torch sphere with no wall blocking
-                // = player is in light
+                if (showDebugLogs)
+                    Debug.Log("In light: " +
+                        light.gameObject.name);
                 return 1f;
             }
         }
 
-        // No torch reached player
         return 0f;
     }
 
-    // Torches call this when they spawn
-    public void RegisterTorch(TorchLight torch)
+    bool IsPlayerInLightRange(Light light, Vector3 playerPos)
     {
-        if (!allTorches.Contains(torch))
-            allTorches.Add(torch);
+        float dist = Vector3.Distance(
+            light.transform.position, playerPos);
+
+        if (light.type == LightType.Directional)
+            return true;
+
+        if (light.type == LightType.Point)
+            return dist <= light.range;
+
+        if (light.type == LightType.Spot)
+        {
+            if (dist > light.range) return false;
+
+            Vector3 toPlayer =
+                (playerPos - light.transform.position).normalized;
+
+            float angle = Vector3.Angle(
+                light.transform.forward, toPlayer);
+
+            return angle <= light.spotAngle / 2f;
+        }
+
+        if (light.type == LightType.Rectangle)
+            return dist <= light.range;
+
+        return false;
     }
 
-    public void UnregisterTorch(TorchLight torch)
+    // Still here for Watcher sweeping light if needed
+    public void RefreshLights()
     {
-        allTorches.Remove(torch);
+        allLights = FindObjectsByType<Light>(
+            FindObjectsSortMode.None);
+
+        if (showDebugLogs)
+            Debug.Log("Found " + allLights.Length + " lights");
     }
 }
