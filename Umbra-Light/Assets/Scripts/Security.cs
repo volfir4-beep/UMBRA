@@ -33,17 +33,39 @@ public class Security : MonoBehaviour
     [Header("Shooting")]
     public GameObject enemyBulletPrefab;
     public Transform shootPoint;
-    public float shootCooldown = 2f;
-    private float lastShootTime;
+    public float shootCooldown = 1.8f;
+    // Time between shots after first shot
+
+    [Header("Aim Settings")]
+    public float aimTime = 0.5f;
+    // Seconds guard must face player before firing FIRST shot
+    public float facingThreshold = 15f;
+    public float rotationSpeed = 10f;
 
     [Header("Drop")]
     public GameObject gunPickupPrefab;
+
+    [Header("Animation")]
+    public float deathAnimationLength = 2f;
 
     // Internal
     private NavMeshAgent agent;
     private Transform player;
     private bool isDead = false;
     private float currentTimeScale = 1f;
+    private Animator animator;
+
+    // Shoot state tracking
+    private bool isAimed = false;
+    private float aimTimer = 0f;
+    private float lastShootTime = -100f;
+    private bool wasInShootState = false;
+    // wasInShootState tracks if we were shooting last frame
+    // so we know the exact frame we enter shooting state
+
+    // Lost sight grace — prevents flickering
+    private float lostSightTimer = 0f;
+    public float lostSightGrace = 0.5f;
 
     public enum State
     {
@@ -63,19 +85,14 @@ public class Security : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
 
+        animator = GetComponentInChildren<Animator>();
+
         GameObject playerObj =
             GameObject.FindGameObjectWithTag("Player");
-
         if (playerObj != null)
-        {
             player = playerObj.transform;
-            Debug.Log("Security Officer: Found player");
-        }
         else
-        {
-            Debug.LogError("Security Officer: Cannot find " +
-                "Player tag — set Tag on Player object");
-        }
+            Debug.LogError("Security: Cannot find Player tag");
 
         WorldTimeController.Instance.RegisterEnemy(this);
         GoToNextPatrolPoint();
@@ -94,12 +111,10 @@ public class Security : MonoBehaviour
     {
         currentTimeScale = immuneToTimeFreeze ? 1f : scale;
 
-        float currentSpeed = GetCurrentSpeed();
-        agent.speed = currentSpeed * currentTimeScale;
+        agent.speed = GetCurrentSpeed() * currentTimeScale;
         agent.angularSpeed = 180f * currentTimeScale;
         agent.acceleration = 12f * currentTimeScale;
 
-        // Hard stop when fully frozen
         if (currentTimeScale < 0.02f && !immuneToTimeFreeze)
         {
             agent.ResetPath();
@@ -107,22 +122,18 @@ public class Security : MonoBehaviour
         }
     }
 
-    // Returns correct speed based on state and distance
     float GetCurrentSpeed()
     {
         if (currentState == State.Patrolling)
             return patrolSpeed;
 
-        // Rushing — very close to player
         if (player != null)
         {
-            float dist = Vector3.Distance(
+            float d = Vector3.Distance(
                 transform.position, player.position);
-
-            if (dist < rushDistance)
+            if (d < rushDistance)
                 return chaseSpeed * rushMultiplier;
         }
-
         return chaseSpeed;
     }
 
@@ -136,23 +147,63 @@ public class Security : MonoBehaviour
         if (player == null) return;
 
         float timeScale = WorldTimeController.Instance.worldTimeScale;
-        float distToPlayer = Vector3.Distance(
+        float dist = Vector3.Distance(
             transform.position, player.position);
 
-        // FROZEN — only rotate to watch player
+        // FROZEN
         if (timeScale < 0.02f && !immuneToTimeFreeze)
         {
-            if (distToPlayer <= awarenessRange)
+            if (dist <= awarenessRange)
                 RotateToFacePlayer();
+            if (animator != null)
+            {
+                animator.SetFloat("Speed", 0f);
+                animator.SetBool("IsShooting", false);
+            }
             return;
         }
 
-        // Update speed every frame based on current state
-        float speed = GetCurrentSpeed();
-        agent.speed = speed * currentTimeScale;
+        agent.speed = GetCurrentSpeed() * currentTimeScale;
 
-        // Decide and execute state
-        DecideState(distToPlayer);
+        DecideState(dist);
+
+        // Detect the EXACT frame we enter shooting state
+        bool enteringShootNow =
+            currentState == State.Shooting && !wasInShootState;
+
+        if (enteringShootNow)
+        {
+            // Just entered shoot state this frame
+            // Reset aim and set lastShootTime to NOW
+            // This means first shot won't fire until
+            // aimTime passes AND full cooldown passes
+            isAimed = false;
+            aimTimer = 0f;
+            lastShootTime = Time.time;
+            // Setting to Time.time forces full cooldown
+            // after aim phase before first shot fires
+        }
+
+        // Track whether we were in shoot state last frame
+        wasInShootState = (currentState == State.Shooting);
+
+        // Reset aim when truly leaving combat
+        if (currentState == State.Patrolling ||
+            currentState == State.Alerted)
+        {
+            isAimed = false;
+            aimTimer = 0f;
+        }
+
+        // Animator
+        if (animator != null)
+        {
+            animator.SetFloat("Speed",
+                agent.velocity.magnitude);
+            animator.SetBool("IsShooting",
+                (currentState == State.Shooting ||
+                 currentState == State.Backing) && isAimed);
+        }
 
         switch (currentState)
         {
@@ -175,6 +226,7 @@ public class Security : MonoBehaviour
         // Too close — back up
         if (dist < backupDistance && canSee)
         {
+            lostSightTimer = 0f;
             currentState = State.Backing;
             return;
         }
@@ -182,10 +234,30 @@ public class Security : MonoBehaviour
         // Shoot range
         if (dist <= shootRange && canSee)
         {
+            lostSightTimer = 0f;
             currentState = State.Shooting;
             lastKnownPlayerPos = player.position;
             isAlerted = true;
             return;
+        }
+
+        // Grace period — just left shoot range
+        // Prevents flickering when on boundary
+        if (wasInShootState)
+        {
+            if (!canSee || dist > shootRange)
+            {
+                lostSightTimer += Time.deltaTime;
+                if (lostSightTimer < lostSightGrace)
+                {
+                    currentState = State.Shooting;
+                    return;
+                }
+            }
+            else
+            {
+                lostSightTimer = 0f;
+            }
         }
 
         // Chase range
@@ -205,7 +277,7 @@ public class Security : MonoBehaviour
             return;
         }
 
-        // Alert range — vision cone + LOS
+        // Alert range
         if (dist <= alertRange && canSee)
         {
             currentState = State.Chasing;
@@ -214,7 +286,6 @@ public class Security : MonoBehaviour
             return;
         }
 
-        // Out of all ranges
         if (!isAlerted)
             currentState = State.Patrolling;
         else
@@ -222,7 +293,7 @@ public class Security : MonoBehaviour
     }
 
     // ─────────────────────────────────────────
-    // STATE BEHAVIOURS
+    // PATROL
     // ─────────────────────────────────────────
 
     void DoPatrol()
@@ -241,22 +312,28 @@ public class Security : MonoBehaviour
         }
     }
 
+    // ─────────────────────────────────────────
+    // ALERTED
+    // ─────────────────────────────────────────
+
     void DoAlerted()
     {
         if (agent.destination != lastKnownPlayerPos)
             agent.SetDestination(lastKnownPlayerPos);
 
         investigateTimer += Time.deltaTime;
-
         if (investigateTimer >= investigateTime)
         {
             isAlerted = false;
             investigateTimer = 0f;
             currentState = State.Patrolling;
             GoToNextPatrolPoint();
-            Debug.Log("Security Officer: Lost player — resuming patrol");
         }
     }
+
+    // ─────────────────────────────────────────
+    // CHASE
+    // ─────────────────────────────────────────
 
     void DoChase()
     {
@@ -264,40 +341,83 @@ public class Security : MonoBehaviour
         lastKnownPlayerPos = player.position;
     }
 
+    // ─────────────────────────────────────────
+    // SHOOT
+    // ─────────────────────────────────────────
+
     void DoShoot()
     {
-        // Stop moving
+        // Hard stop every frame — no sliding
+        agent.ResetPath();
+        agent.velocity = Vector3.zero;
         agent.SetDestination(transform.position);
 
-        // Smooth face toward player
-        Vector3 lookTarget = new Vector3(
-            player.position.x,
-            transform.position.y,
-            player.position.z);
+        // Horizontal direction to player only
+        // No vertical tilt when rotating
+        Vector3 dirToPlayer = new Vector3(
+            player.position.x - transform.position.x,
+            0f,
+            player.position.z - transform.position.z).normalized;
 
+        // Always rotate toward player
         transform.rotation = Quaternion.Slerp(
             transform.rotation,
-            Quaternion.LookRotation(lookTarget - transform.position),
-            Time.deltaTime * 8f);
+            Quaternion.LookRotation(dirToPlayer),
+            Time.deltaTime * rotationSpeed);
 
-        // Close range = faster shooting
-        float dist = Vector3.Distance(
-            transform.position, player.position);
+        float angleToPlayer = Vector3.Angle(
+            transform.forward, dirToPlayer);
 
-        float currentCooldown = dist < shootRange / 2f
-            ? shootCooldown / 2f   // Close = shoot twice as fast
-            : shootCooldown;       // Normal range = normal cooldown
-
-        if (Time.time > lastShootTime + currentCooldown)
+        if (!isAimed)
         {
-            FireBullet();
-            lastShootTime = Time.time;
+            // AIM PHASE — must face player for aimTime seconds
+            if (angleToPlayer < facingThreshold)
+            {
+                aimTimer += Time.deltaTime;
+                if (aimTimer >= aimTime)
+                {
+                    isAimed = true;
+                    aimTimer = 0f;
+                    // Set lastShootTime to now so cooldown
+                    // runs fully before first shot
+                    lastShootTime = Time.time;
+                    Debug.Log("Security: Aimed — firing soon");
+                }
+            }
+            else
+            {
+                // Not facing — reset aim timer
+                aimTimer = 0f;
+            }
+            // No shooting in aim phase
+            return;
+        }
+
+        // FIRE PHASE
+        // Only fire when facing within threshold
+        if (angleToPlayer < facingThreshold * 2f)
+        {
+            float dist = Vector3.Distance(
+                transform.position, player.position);
+
+            float cooldown = dist < shootRange / 2f
+                ? shootCooldown * 0.6f
+                : shootCooldown;
+
+            if (Time.time > lastShootTime + cooldown)
+            {
+                FireBullet();
+                lastShootTime = Time.time;
+            }
         }
     }
 
+    // ─────────────────────────────────────────
+    // BACKUP
+    // ─────────────────────────────────────────
+
     void DoBackup()
     {
-        // Move away from player
         Vector3 away = (transform.position -
             player.position).normalized;
         away.y = 0f;
@@ -307,18 +427,18 @@ public class Security : MonoBehaviour
         NavMeshHit hit;
         if (NavMesh.SamplePosition(backupTarget, out hit,
             2f, NavMesh.AllAreas))
-        {
             agent.SetDestination(hit.position);
-        }
 
-        // Still face player
-        Vector3 lookTarget = new Vector3(
-            player.position.x,
-            transform.position.y,
-            player.position.z);
-        transform.LookAt(lookTarget);
+        Vector3 dirToPlayer = new Vector3(
+            player.position.x - transform.position.x,
+            0f,
+            player.position.z - transform.position.z).normalized;
 
-        // Keep shooting while backing up
+        transform.rotation = Quaternion.Slerp(
+            transform.rotation,
+            Quaternion.LookRotation(dirToPlayer),
+            Time.deltaTime * rotationSpeed);
+
         if (Time.time > lastShootTime + shootCooldown)
         {
             FireBullet();
@@ -339,14 +459,11 @@ public class Security : MonoBehaviour
 
     void RotateToFacePlayer()
     {
-        Vector3 lookTarget = new Vector3(
-            player.position.x,
-            transform.position.y,
-            player.position.z);
-
-        Vector3 dir = lookTarget - transform.position;
+        Vector3 dir = new Vector3(
+            player.position.x - transform.position.x,
+            0f,
+            player.position.z - transform.position.z);
         if (dir == Vector3.zero) return;
-
         transform.rotation = Quaternion.Slerp(
             transform.rotation,
             Quaternion.LookRotation(dir),
@@ -357,26 +474,24 @@ public class Security : MonoBehaviour
     {
         if (player == null) return false;
 
-        Vector3 dirToPlayer = player.position - transform.position;
+        Vector3 dirToPlayer =
+            player.position - transform.position;
         float dist = dirToPlayer.magnitude;
 
-        // Always detect if extremely close
         if (dist < 2.5f) return true;
 
-        // Vision cone check
         float angle = Vector3.Angle(
             transform.forward, dirToPlayer);
         if (angle > visionAngle / 2f) return false;
 
-        // Wall blocking check
-        Vector3 eyePos = transform.position + Vector3.up * 1.5f;
-        Vector3 playerChest = player.position + Vector3.up * 1f;
-        Vector3 direction = playerChest - eyePos;
+        Vector3 eyePos =
+            transform.position + Vector3.up * 1.5f;
+        Vector3 playerCenter =
+            player.position + Vector3.up * 0.9f;
+        Vector3 dir = playerCenter - eyePos;
 
-        if (Physics.Raycast(
-            eyePos,
-            direction.normalized,
-            direction.magnitude,
+        if (Physics.Raycast(eyePos, dir.normalized,
+            dir.magnitude,
             LayerMask.GetMask("Environment")))
             return false;
 
@@ -384,41 +499,36 @@ public class Security : MonoBehaviour
     }
 
     // ─────────────────────────────────────────
-    // SHOOTING
+    // FIRE BULLET
     // ─────────────────────────────────────────
 
     void FireBullet()
     {
         if (enemyBulletPrefab == null)
         {
-            Debug.LogWarning("Security Officer: " +
-                "No bullet prefab assigned");
+            Debug.LogWarning("Security: No bullet prefab");
             return;
         }
-
         if (shootPoint == null)
         {
-            Debug.LogWarning("Security Officer: " +
-                "No shoot point assigned");
+            Debug.LogWarning("Security: No shoot point");
             return;
         }
 
-        // Aim at chest not feet
-        Vector3 targetPos = player.position + Vector3.up * 1f;
-        Vector3 direction =
-            (targetPos - shootPoint.position).normalized;
+        // Aim at player center body — not feet, not head
+        Vector3 playerCenter =
+            player.position + Vector3.up * 0.9f;
+        Vector3 finalDir =
+            (playerCenter - shootPoint.position).normalized;
 
         GameObject bullet = Instantiate(
             enemyBulletPrefab,
             shootPoint.position,
-            Quaternion.LookRotation(direction));
+            Quaternion.LookRotation(finalDir));
 
         FrozenBullet fb = bullet.GetComponent<FrozenBullet>();
         if (fb != null)
-        {
             fb.isEnemyBullet = true;
-            Debug.Log("Security Officer: Fired bullet at player");
-        }
     }
 
     // ─────────────────────────────────────────
@@ -430,13 +540,32 @@ public class Security : MonoBehaviour
         if (isDead) return;
         isDead = true;
 
+        // Stop animator fighting death state
+        // by disabling all parameter updates
+        if (animator != null)
+        {
+            // Reset everything before triggering death
+            animator.SetFloat("Speed", 0f);
+            animator.SetBool("IsShooting", false);
+            animator.SetBool("IsDead", true);
+        }
+
         if (gunPickupPrefab != null)
-            Instantiate(
-                gunPickupPrefab,
+            Instantiate(gunPickupPrefab,
                 transform.position + Vector3.up * 0.5f,
                 Quaternion.identity);
 
         WorldTimeController.Instance?.UnregisterEnemy(this);
-        Destroy(gameObject);
+
+        // Stop all movement
+        agent.ResetPath();
+        agent.velocity = Vector3.zero;
+        agent.enabled = false;
+
+        // Disable this script so Update stops running
+        // Prevents animator parameter fighting
+        this.enabled = false;
+
+        Destroy(gameObject, deathAnimationLength);
     }
 }
