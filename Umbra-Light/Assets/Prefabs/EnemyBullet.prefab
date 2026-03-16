@@ -153,5 +153,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d392f34ea9e6f3148affeb765cfdf2be, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FrozenBullet
-  bulletSpeed: 35
+  bulletSpeed: 50
   isEnemyBullet: 1
+  maxTravelTime: 6

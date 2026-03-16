@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using static UnityEditor.Experimental.GraphView.GraphView;
 
 public class FrozenBullet : MonoBehaviour
 {
@@ -181,10 +180,19 @@ public class FrozenBullet : MonoBehaviour
             {
                 hasHit = true;
                 AlertSentinels(hit.point);
+
+                // Check Security (regular guard)
                 Security sec =
                     hit.collider.GetComponent<Security>() ??
                     hit.collider.GetComponentInParent<Security>();
                 if (sec != null) sec.Die();
+
+                // Check SentinelGuard
+                SentinelGuard sg =
+                    hit.collider.GetComponent<SentinelGuard>() ??
+                    hit.collider.GetComponentInParent<SentinelGuard>();
+                if (sg != null) sg.Die();
+
                 NotifyShooter();
                 Destroy(gameObject);
                 return;
@@ -238,7 +246,6 @@ public class FrozenBullet : MonoBehaviour
     {
         if (hasHit) return;
 
-        // Target board via trigger
         if (!isEnemyBullet && other.CompareTag("Target"))
         {
             hasHit = true;
@@ -254,10 +261,17 @@ public class FrozenBullet : MonoBehaviour
         if (!isEnemyBullet && other.CompareTag("Enemy"))
         {
             hasHit = true;
+
             Security sec =
                 other.GetComponent<Security>() ??
                 other.GetComponentInParent<Security>();
             if (sec != null) sec.Die();
+
+            SentinelGuard sg =
+                other.GetComponent<SentinelGuard>() ??
+                other.GetComponentInParent<SentinelGuard>();
+            if (sg != null) sg.Die();
+
             NotifyShooter();
             Destroy(gameObject);
             return;
@@ -293,7 +307,6 @@ public class FrozenBullet : MonoBehaviour
 
     void AlertSentinels(Vector3 position)
     {
-        // Find all sentinels in scene
         SentinelGuard[] sentinels =
             FindObjectsByType<SentinelGuard>(
                 FindObjectsSortMode.None);

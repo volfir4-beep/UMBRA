@@ -7,11 +7,9 @@ public class SentinelGuard : MonoBehaviour
     public float visionRange = 8f;
     public float visionAngle = 90f;
     public float alertRadius = 12f;
-    // If bullet lands within this radius — guard investigates
 
     [Header("Investigation")]
     public float investigateTime = 5f;
-    // How long guard searches before returning to post
     public float investigateSpeed = 3.5f;
 
     [Header("Shooting")]
@@ -21,29 +19,29 @@ public class SentinelGuard : MonoBehaviour
     public float shootCooldown = 2f;
     private float lastShootTime;
 
+    [Header("Aim Settings")]
+    public float aimTime = 0.5f;
+    public float facingThreshold = 15f;
+    private bool isAimed = false;
+    private float aimTimer = 0f;
+
     [Header("Drop")]
     public GameObject gunPickupPrefab;
 
     [Header("Animation")]
     public float deathAnimationLength = 2f;
 
-    // Internal
     private NavMeshAgent agent;
     private Transform player;
     private bool isDead = false;
     private float currentTimeScale = 1f;
     private Animator animator;
 
-    // Post = original standing position
-    // Guard always returns here after investigating
     private Vector3 postPosition;
     private Quaternion postRotation;
 
-    // Investigation
     private Vector3 investigateTarget;
     private float investigateTimer = 0f;
-    private bool isInvestigating = false;
-    private bool isReturning = false;
 
     public enum State
     {
@@ -64,11 +62,12 @@ public class SentinelGuard : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponentInChildren<Animator>();
 
-        // Store starting position as permanent post
+        // Force full cooldown before first shot
+        lastShootTime = Time.time;
+
         postPosition = transform.position;
         postRotation = transform.rotation;
 
-        // Stand still at start
         agent.SetDestination(postPosition);
 
         GameObject playerObj =
@@ -80,7 +79,6 @@ public class SentinelGuard : MonoBehaviour
             Debug.LogError("SentinelGuard: " +
                 "Cannot find Player tag");
 
-        // Register with WorldTimeController
         WorldTimeController.Instance?.RegisterSentinel(this);
     }
 
@@ -122,7 +120,6 @@ public class SentinelGuard : MonoBehaviour
             ? WorldTimeController.Instance.worldTimeScale
             : 1f;
 
-        // Frozen — face player if close
         if (timeScale < 0.02f)
         {
             float dist = Vector3.Distance(
@@ -137,7 +134,7 @@ public class SentinelGuard : MonoBehaviour
 
         bool canSee = CanSeePlayer();
 
-        // If sees player at any point — switch to combat
+        // If sees player — switch to combat
         if (canSee && distToPlayer <= visionRange)
         {
             if (distToPlayer <= shootRange)
@@ -148,34 +145,19 @@ public class SentinelGuard : MonoBehaviour
 
         switch (currentState)
         {
-            case State.Standing:
-                DoStand();
-                break;
-
-            case State.Investigating:
-                DoInvestigate();
-                break;
-
-            case State.Returning:
-                DoReturn();
-                break;
-
-            case State.Chasing:
-                DoChase(distToPlayer);
-                break;
-
-            case State.Shooting:
-                DoShoot(distToPlayer);
-                break;
+            case State.Standing: DoStand(); break;
+            case State.Investigating: DoInvestigate(); break;
+            case State.Returning: DoReturn(); break;
+            case State.Chasing: DoChase(distToPlayer); break;
+            case State.Shooting: DoShoot(distToPlayer); break;
         }
 
-        // Update animator
         if (animator != null)
         {
             animator.SetFloat("Speed",
                 agent.velocity.magnitude);
             animator.SetBool("IsShooting",
-                currentState == State.Shooting);
+                currentState == State.Shooting && isAimed);
         }
     }
 
@@ -185,10 +167,8 @@ public class SentinelGuard : MonoBehaviour
 
     void DoStand()
     {
-        // Stay at post — face original direction
         agent.SetDestination(postPosition);
 
-        // Slowly return to post rotation when standing
         transform.rotation = Quaternion.Slerp(
             transform.rotation,
             postRotation,
@@ -199,7 +179,6 @@ public class SentinelGuard : MonoBehaviour
     {
         agent.SetDestination(investigateTarget);
 
-        // Count down while near the target
         float distToTarget = Vector3.Distance(
             transform.position, investigateTarget);
 
@@ -207,15 +186,12 @@ public class SentinelGuard : MonoBehaviour
         {
             investigateTimer += Time.deltaTime;
 
-            // Look around slowly while investigating
             transform.Rotate(
                 Vector3.up, 60f * Time.deltaTime);
 
             if (investigateTimer >= investigateTime)
             {
-                // Nothing found — return to post
                 investigateTimer = 0f;
-                isInvestigating = false;
                 currentState = State.Returning;
                 Debug.Log("SentinelGuard: " +
                     "Nothing found — returning to post");
@@ -232,7 +208,6 @@ public class SentinelGuard : MonoBehaviour
 
         if (distToPost < 0.5f)
         {
-            // Back at post — stand still again
             currentState = State.Standing;
             agent.SetDestination(postPosition);
         }
@@ -240,13 +215,15 @@ public class SentinelGuard : MonoBehaviour
 
     void DoChase(float distToPlayer)
     {
+        // Reset aim — must re-aim when entering shoot state
+        isAimed = false;
+        aimTimer = 0f;
+
         agent.SetDestination(player.position);
 
-        // Switch to shoot if close enough
         if (distToPlayer <= shootRange && CanSeePlayer())
             currentState = State.Shooting;
 
-        // Lost sight — investigate last known position
         if (!CanSeePlayer())
         {
             investigateTarget = player.position;
@@ -257,12 +234,10 @@ public class SentinelGuard : MonoBehaviour
 
     void DoShoot(float distToPlayer)
     {
-        // Stop moving
         agent.ResetPath();
         agent.velocity = Vector3.zero;
         agent.SetDestination(transform.position);
 
-        // Face player
         Vector3 dirToPlayer = new Vector3(
             player.position.x - transform.position.x,
             0f,
@@ -274,15 +249,44 @@ public class SentinelGuard : MonoBehaviour
             Quaternion.LookRotation(dirToPlayer),
             Time.deltaTime * 10f);
 
-        // Back away if player too close
+        float angleToPlayer = Vector3.Angle(
+            transform.forward, dirToPlayer);
+
+        // Lost player — chase and reset aim
         if (distToPlayer > shootRange || !CanSeePlayer())
         {
+            isAimed = false;
+            aimTimer = 0f;
             currentState = State.Chasing;
             return;
         }
 
-        // Shoot on cooldown
-        if (Time.time > lastShootTime + shootCooldown)
+        if (!isAimed)
+        {
+            // AIM PHASE — face player for aimTime seconds
+            if (angleToPlayer < facingThreshold)
+            {
+                aimTimer += Time.deltaTime;
+                if (aimTimer >= aimTime)
+                {
+                    isAimed = true;
+                    aimTimer = 0f;
+                    // Force full cooldown before first shot
+                    lastShootTime = Time.time;
+                    Debug.Log("SentinelGuard: Aimed");
+                }
+            }
+            else
+            {
+                // Not facing — reset timer
+                aimTimer = 0f;
+            }
+            return; // No shooting during aim phase
+        }
+
+        // FIRE PHASE
+        if (angleToPlayer < facingThreshold * 2f &&
+            Time.time > lastShootTime + shootCooldown)
         {
             FireBullet();
             lastShootTime = Time.time;
@@ -290,12 +294,11 @@ public class SentinelGuard : MonoBehaviour
     }
 
     // ─────────────────────────────────────────
-    // SOUND ALERT — called by FrozenBullet
+    // SOUND ALERT
     // ─────────────────────────────────────────
 
     public void HearSound(Vector3 soundPosition)
     {
-        // Only react if not already in combat
         if (currentState == State.Chasing ||
             currentState == State.Shooting)
             return;
@@ -305,9 +308,7 @@ public class SentinelGuard : MonoBehaviour
 
         if (dist <= alertRadius)
         {
-            Debug.Log("SentinelGuard: " +
-                "Heard something — investigating");
-
+            Debug.Log("SentinelGuard: Heard something");
             investigateTarget = soundPosition;
             investigateTimer = 0f;
             currentState = State.Investigating;
@@ -353,6 +354,8 @@ public class SentinelGuard : MonoBehaviour
             player.position + Vector3.up * 0.9f;
         Vector3 dir = playerChest - eyePos;
 
+        Debug.DrawRay(eyePos, dir, Color.red);
+
         if (Physics.Raycast(eyePos, dir.normalized,
             dir.magnitude,
             LayerMask.GetMask("Environment")))
@@ -383,12 +386,10 @@ public class SentinelGuard : MonoBehaviour
 
     void OnDrawGizmosSelected()
     {
-        // Yellow = alert radius
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(
             transform.position, alertRadius);
 
-        // Red = vision range
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(
             transform.position, visionRange);
@@ -400,7 +401,11 @@ public class SentinelGuard : MonoBehaviour
         isDead = true;
 
         if (animator != null)
+        {
+            animator.SetFloat("Speed", 0f);
+            animator.SetBool("IsShooting", false);
             animator.SetBool("IsDead", true);
+        }
 
         if (gunPickupPrefab != null)
             Instantiate(gunPickupPrefab,

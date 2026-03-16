@@ -58,7 +58,7 @@ public class Security : MonoBehaviour
     // Shoot state tracking
     private bool isAimed = false;
     private float aimTimer = 0f;
-    private float lastShootTime = -100f;
+    private float lastShootTime;
     private bool wasInShootState = false;
     // wasInShootState tracks if we were shooting last frame
     // so we know the exact frame we enter shooting state
@@ -96,6 +96,8 @@ public class Security : MonoBehaviour
 
         WorldTimeController.Instance.RegisterEnemy(this);
         GoToNextPatrolPoint();
+
+        lastShootTime = Time.time;
     }
 
     void OnDestroy()
@@ -189,7 +191,9 @@ public class Security : MonoBehaviour
 
         // Reset aim when truly leaving combat
         if (currentState == State.Patrolling ||
-            currentState == State.Alerted)
+        currentState == State.Alerted ||
+        currentState == State.Chasing ||
+        currentState == State.Backing)
         {
             isAimed = false;
             aimTimer = 0f;
@@ -378,8 +382,8 @@ public class Security : MonoBehaviour
                 {
                     isAimed = true;
                     aimTimer = 0f;
-                    // Set lastShootTime to now so cooldown
-                    // runs fully before first shot
+                    // Reset shoot timer so full cooldown runs
+                    // before first shot fires
                     lastShootTime = Time.time;
                     Debug.Log("Security: Aimed — firing soon");
                 }
@@ -404,7 +408,8 @@ public class Security : MonoBehaviour
                 ? shootCooldown * 0.6f
                 : shootCooldown;
 
-            if (Time.time > lastShootTime + cooldown)
+            // Only shoot in backup if already aimed from shoot state
+            if (isAimed && Time.time > lastShootTime + shootCooldown)
             {
                 FireBullet();
                 lastShootTime = Time.time;

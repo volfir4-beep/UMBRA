@@ -95,6 +95,7 @@ public class PlayerShooting : MonoBehaviour
         {
             if (hit.CompareTag("Enemy"))
             {
+                // Check Security guard
                 Security sec =
                     hit.GetComponent<Security>() ??
                     hit.GetComponentInParent<Security>();
@@ -103,14 +104,20 @@ public class PlayerShooting : MonoBehaviour
                 {
                     sec.Die();
                     lastMeleeTime = Time.time;
+                    Debug.Log("Melee hit Security!");
+                    return true;
+                }
 
-                    // Punch animation
-                    if (playerAnimator != null)
-                    {
-                        playerAnimator.SetBool(
-                            "IsMelee", true);
-                        Invoke(nameof(ResetMelee), 0.6f);
-                    }
+                // Check SentinelGuard
+                SentinelGuard sg =
+                    hit.GetComponent<SentinelGuard>() ??
+                    hit.GetComponentInParent<SentinelGuard>();
+
+                if (sg != null)
+                {
+                    sg.Die();
+                    lastMeleeTime = Time.time;
+                    Debug.Log("Melee hit Sentinel!");
                     return true;
                 }
             }
