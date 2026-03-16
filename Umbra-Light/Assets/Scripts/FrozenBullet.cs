@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using static UnityEditor.Experimental.GraphView.GraphView;
 
 public class FrozenBullet : MonoBehaviour
 {
@@ -155,9 +156,6 @@ public class FrozenBullet : MonoBehaviour
             int layer = hit.collider.gameObject.layer;
             int envLayer = LayerMask.NameToLayer("Environment");
 
-            // ── TARGET BOARD ──────────────────────
-            // Check this BEFORE environment
-            // so board is destroyed not just stopped
             if (!isEnemyBullet && tag == "Target")
             {
                 hasHit = true;
@@ -170,19 +168,19 @@ public class FrozenBullet : MonoBehaviour
                 return;
             }
 
-            // ── WALL OR FLOOR ──────────────────────
             if (tag == "Environment" || layer == envLayer)
             {
                 hasHit = true;
+                AlertSentinels(hit.point);
                 NotifyShooter();
                 Destroy(gameObject);
                 return;
             }
 
-            // ── ENEMY ─────────────────────────────
             if (!isEnemyBullet && tag == "Enemy")
             {
                 hasHit = true;
+                AlertSentinels(hit.point);
                 Security sec =
                     hit.collider.GetComponent<Security>() ??
                     hit.collider.GetComponentInParent<Security>();
@@ -192,7 +190,6 @@ public class FrozenBullet : MonoBehaviour
                 return;
             }
 
-            // ── PLAYER ────────────────────────────
             if (isEnemyBullet && tag == "Player")
             {
                 hasHit = true;
@@ -291,6 +288,20 @@ public class FrozenBullet : MonoBehaviour
         {
             shooter.BulletDestroyed();
             shooter = null;
+        }
+    }
+
+    void AlertSentinels(Vector3 position)
+    {
+        // Find all sentinels in scene
+        SentinelGuard[] sentinels =
+            FindObjectsByType<SentinelGuard>(
+                FindObjectsSortMode.None);
+
+        foreach (SentinelGuard s in sentinels)
+        {
+            if (s != null)
+                s.HearSound(position);
         }
     }
 
