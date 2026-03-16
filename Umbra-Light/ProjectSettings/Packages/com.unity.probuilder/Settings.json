@@ -1,5 +1,6 @@
 {
     "m_Dictionary": {
+<<<<<<< Updated upstream
         "m_DictionaryValues": [
             {
                 "type": "UnityEngine.ProBuilder.LogLevel, Unity.ProBuilder, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null",
@@ -142,5 +143,8 @@
                 "value": "{\"m_Value\":0}"
             }
         ]
+=======
+        "m_DictionaryValues": []
+>>>>>>> Stashed changes
     }
 }

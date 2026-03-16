@@ -1,27 +1,25 @@
-﻿using NUnit.Framework.Internal;
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
+using TMPro; // Add this for UI
 
 public class Door : MonoBehaviour
 {
     [Header("Key Required")]
     public string requiredKeyID = "DoorKey";
-    // Must exactly match keyID in KeyPickup script
-    // Both default to DoorKey — change both if needed
 
     [Header("Interaction")]
     public float interactRange = 2.5f;
     public KeyCode interactKey = KeyCode.E;
 
+    [Header("UI Reference")]
+    public GameObject contextUI; // Drag "ContextMessage" here
+
     [Header("Opening")]
     public float openAngle = 90f;
     public float openDuration = 0.8f;
-    // Seconds for door to complete rotation
-    // Higher = slower, more dramatic
 
     public enum OpenDirection { Left, Right }
     public OpenDirection openDirection = OpenDirection.Left;
-    // If door opens wrong way — switch this in Inspector
 
     // Internal
     private Transform player;
@@ -33,51 +31,62 @@ public class Door : MonoBehaviour
 
     void Start()
     {
-        GameObject playerObj =
-            GameObject.FindGameObjectWithTag("Player");
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
 
         if (playerObj != null)
         {
             player = playerObj.transform;
-
-            // Gets PlayerInventory from Player root
-            // Same object as PlayerShooting, PlayerDeath
-            playerInventory =
-                playerObj.GetComponent<PlayerInventory>();
-
-            if (playerInventory == null)
-                Debug.LogError("Door: No PlayerInventory " +
-                    "on Player — Add Component → PlayerInventory");
-        }
-        else
-        {
-            Debug.LogError("Door: Cannot find Player tag");
+            playerInventory = playerObj.GetComponent<PlayerInventory>();
         }
 
-        // Store rotations at start
-        // so we know exactly where closed and open are
+        if (contextUI != null) contextUI.SetActive(false);
+
         closedRotation = transform.rotation;
-
-        float angle = openDirection == OpenDirection.Left
-            ? -openAngle : openAngle;
-
-        openRotation = closedRotation *
-            Quaternion.Euler(0f, angle, 0f);
+        float angle = openDirection == OpenDirection.Left ? -openAngle : openAngle;
+        openRotation = closedRotation * Quaternion.Euler(0f, angle, 0f);
     }
 
     void Update()
     {
-        // Already open or moving — ignore input
-        if (isOpen || isMoving) return;
-        if (player == null) return;
+        if (isOpen || isMoving || player == null) return;
 
-        float dist = Vector3.Distance(
-            transform.position, player.position);
+        float dist = Vector3.Distance(transform.position, player.position);
 
-        if (dist <= interactRange &&
-            Input.GetKeyDown(interactKey))
+        if (dist <= interactRange)
         {
-            TryOpen();
+            // Handle UI Messaging
+            if (playerInventory != null && playerInventory.HasKey(requiredKeyID))
+            {
+                UpdateUI("Unlock the door by pressing [" + interactKey + "]");
+                
+                if (Input.GetKeyDown(interactKey))
+                {
+                    TryOpen();
+                }
+            }
+            else
+            {
+                UpdateUI("You don't have the key for this");
+            }
+        }
+        else
+        {
+            // Hide UI when out of range
+            if (contextUI != null && contextUI.activeSelf)
+            {
+                contextUI.SetActive(false);
+            }
+        }
+    }
+
+    // Helper function to update the text safely
+    void UpdateUI(string msg)
+    {
+        if (contextUI != null)
+        {
+            if (!contextUI.activeSelf) contextUI.SetActive(true);
+            var text = contextUI.GetComponent<TextMeshProUGUI>();
+            if (text != null) text.text = msg;
         }
     }
 
@@ -87,60 +96,38 @@ public class Door : MonoBehaviour
 
         if (playerInventory.HasKey(requiredKeyID))
         {
-            // Has correct key — open door
-            // Remove key so it cant be reused
-            // Delete next line if key should stay in inventory
             playerInventory.RemoveKey(requiredKeyID);
-
+            
+            // Hide UI as soon as interaction begins
+            if (contextUI != null) contextUI.SetActive(false);
+            
             StartCoroutine(OpenDoor());
-        }
-        else
-        {
-            // No key — tell player
-            Debug.Log("This door is locked. Need: " +
-                requiredKeyID);
-
-            // Later replace Debug.Log with UI popup text
         }
     }
 
     IEnumerator OpenDoor()
     {
         isMoving = true;
-
         float elapsed = 0f;
         Quaternion startRot = transform.rotation;
 
         while (elapsed < openDuration)
         {
             elapsed += Time.deltaTime;
-
-            // 0 to 1 progress
             float t = Mathf.Clamp01(elapsed / openDuration);
-
-            // Smooth ease in/out
-            // Makes door feel heavy not robotic
             float smoothT = t * t * (3f - 2f * t);
-
-            transform.rotation = Quaternion.Lerp(
-                startRot, openRotation, smoothT);
-
+            transform.rotation = Quaternion.Lerp(startRot, openRotation, smoothT);
             yield return null;
         }
 
-        // Snap to exact final position
         transform.rotation = openRotation;
         isOpen = true;
         isMoving = false;
-
-        Debug.Log("Door open");
     }
 
     void OnDrawGizmosSelected()
     {
-        // Green sphere shows interact range in scene view
         Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(
-            transform.position, interactRange);
+        Gizmos.DrawWireSphere(transform.position, interactRange);
     }
 }
