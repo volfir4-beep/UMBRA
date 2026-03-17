@@ -818,7 +818,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GunPickup
   pickupRange: 2
+  nudgeRange: 4.5
   pickupKey: 101
+  pickupMessage: {fileID: 0}
 --- !u!1001 &100013511
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -8891,6 +8893,7 @@ MonoBehaviour:
   requiredKeyID: ExitKey
   interactRange: 2
   interactKey: 102
+  contextUI: {fileID: 0}
   openAngle: 90
   openDuration: 0.8
   openDirection: 0
@@ -26744,8 +26747,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KeyPickup
   pickupRange: 2
+  nudgeRange: 4
   pickupKey: 102
   keyID: ExitKey
+  contextUI: {fileID: 0}
 --- !u!1 &1958170202
 GameObject:
   m_ObjectHideFlags: 0
@@ -30000,8 +30005,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KeyPickup
   pickupRange: 2
+  nudgeRange: 4
   pickupKey: 102
   keyID: Device
+  contextUI: {fileID: 0}
 --- !u!4 &4450086110574358842
 Transform:
   m_ObjectHideFlags: 0
@@ -30866,6 +30873,7 @@ MonoBehaviour:
   requiredKeyID: Device
   interactRange: 1.5
   interactKey: 102
+  contextUI: {fileID: 0}
   openAngle: 90
   openDuration: 0.8
   openDirection: 0
