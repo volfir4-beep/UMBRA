@@ -12,6 +12,8 @@ public class WorldTimeController : MonoBehaviour
         new List<Security>();
     private List<SentinelGuard> allSentinels =
         new List<SentinelGuard>();
+    private List<Gentleman> allGentlemen =
+        new List<Gentleman>();
     private List<FlareGunner> allFlareGunners =
         new List<FlareGunner>();
     private List<RotatingMechanism> allMechanisms =
@@ -32,6 +34,9 @@ public class WorldTimeController : MonoBehaviour
         foreach (SentinelGuard s in allSentinels)
             if (s != null) s.SetTimeScale(worldTimeScale);
 
+        foreach (Gentleman g in allGentlemen)
+            if (g != null) g.SetTimeScale(worldTimeScale);
+
         foreach (FlareGunner fg in allFlareGunners)
             if (fg != null) fg.SetTimeScale(worldTimeScale);
 
@@ -48,6 +53,11 @@ public class WorldTimeController : MonoBehaviour
         => allSentinels.Add(s);
     public void UnregisterSentinel(SentinelGuard s)
         => allSentinels.Remove(s);
+
+    public void RegisterGentleman(Gentleman g)
+    => allGentlemen.Add(g);
+    public void UnregisterGentleman(Gentleman g)
+        => allGentlemen.Remove(g);
 
     public void RegisterFlareGunner(FlareGunner f)
         => allFlareGunners.Add(f);

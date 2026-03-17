@@ -193,6 +193,11 @@ public class FrozenBullet : MonoBehaviour
                     hit.collider.GetComponentInParent<SentinelGuard>();
                 if (sg != null) sg.Die();
 
+                Gentleman gent =
+                    hit.collider.GetComponent<Gentleman>() ??
+                    hit.collider.GetComponentInParent<Gentleman>();
+                if (gent != null) gent.Die();
+
                 NotifyShooter();
                 Destroy(gameObject);
                 return;
@@ -272,6 +277,12 @@ public class FrozenBullet : MonoBehaviour
                 other.GetComponentInParent<SentinelGuard>();
             if (sg != null) sg.Die();
 
+            Gentleman gent =
+                other.GetComponent<Gentleman>() ??
+                other.GetComponentInParent<Gentleman>();
+            if (gent != null) gent.Die();
+
+
             NotifyShooter();
             Destroy(gameObject);
             return;
@@ -310,12 +321,15 @@ public class FrozenBullet : MonoBehaviour
         SentinelGuard[] sentinels =
             FindObjectsByType<SentinelGuard>(
                 FindObjectsSortMode.None);
-
         foreach (SentinelGuard s in sentinels)
-        {
-            if (s != null)
-                s.HearSound(position);
-        }
+            if (s != null) s.HearSound(position);
+
+        // Gentleman also hears gunshots
+        Gentleman[] gentlemen =
+            FindObjectsByType<Gentleman>(
+                FindObjectsSortMode.None);
+        foreach (Gentleman g in gentlemen)
+            if (g != null) g.HearSound(position);
     }
 
     void OnDestroy()
