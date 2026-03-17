@@ -42,8 +42,7 @@ public class Security : MonoBehaviour
     public float facingThreshold = 15f;
     public float rotationSpeed = 10f;
 
-    [Header("Drop")]
-    public GameObject gunPickupPrefab;
+   
 
     [Header("Animation")]
     public float deathAnimationLength = 2f;
@@ -555,10 +554,7 @@ public class Security : MonoBehaviour
             animator.SetBool("IsDead", true);
         }
 
-        if (gunPickupPrefab != null)
-            Instantiate(gunPickupPrefab,
-                transform.position + Vector3.up * 0.5f,
-                Quaternion.identity);
+        
 
         WorldTimeController.Instance?.UnregisterEnemy(this);
 

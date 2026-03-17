@@ -25,8 +25,7 @@ public class SentinelGuard : MonoBehaviour
     private bool isAimed = false;
     private float aimTimer = 0f;
 
-    [Header("Drop")]
-    public GameObject gunPickupPrefab;
+    
 
     [Header("Animation")]
     public float deathAnimationLength = 2f;
@@ -407,11 +406,7 @@ public class SentinelGuard : MonoBehaviour
             animator.SetBool("IsDead", true);
         }
 
-        if (gunPickupPrefab != null)
-            Instantiate(gunPickupPrefab,
-                transform.position + Vector3.up * 0.5f,
-                Quaternion.identity);
-
+        
         WorldTimeController.Instance?
             .UnregisterSentinel(this);
 

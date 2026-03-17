@@ -7,22 +7,15 @@ public class PlayerShooting : MonoBehaviour
     public Transform gunPoint;
 
     [Header("Bullet Limit")]
-    public int maxBullets = 6;
+    public int maxBullets = 3;
     private int currentBullets;
     private bool bulletInAir = false;
 
-    [Header("Melee")]
-    public float meleeRange = 2f;
-    public float meleeCooldown = 0.8f;
-    private float lastMeleeTime = -10f;
-
     [Header("Animation")]
     public Animator playerAnimator;
-    // Drag the MyCharacter_TPose object here
 
     [Header("Gun In Hand")]
     public GameObject gunInHand;
-    // Drag GunInHand mesh (child of RightHand bone)
 
     private bool hasGun = false;
 
@@ -38,18 +31,13 @@ public class PlayerShooting : MonoBehaviour
             playerAnimator =
                 GetComponentInChildren<Animator>();
 
-        // Force reset ALL parameters on start
-        // Prevents Unity caching values from last session
         if (playerAnimator != null)
         {
             playerAnimator.SetBool("HasGun", false);
             playerAnimator.SetBool("IsShooting", false);
-            playerAnimator.SetBool("IsMelee", false);
             playerAnimator.SetBool("IsDead", false);
             playerAnimator.SetBool("IsPickingUp", false);
             playerAnimator.SetFloat("Speed", 0f);
-
-            // Force animator to reset to default state
             playerAnimator.Rebind();
             playerAnimator.Update(0f);
         }
@@ -73,62 +61,7 @@ public class PlayerShooting : MonoBehaviour
         }
 
         if (Input.GetButtonDown("Fire1"))
-        {
-            if (TryMelee()) return;
             TryShoot();
-        }
-    }
-
-    // ─────────────────────────────────────────
-    // MELEE
-    // ─────────────────────────────────────────
-
-    bool TryMelee()
-    {
-        if (Time.time < lastMeleeTime + meleeCooldown)
-            return false;
-
-        Collider[] hits = Physics.OverlapSphere(
-            transform.position, meleeRange);
-
-        foreach (Collider hit in hits)
-        {
-            if (hit.CompareTag("Enemy"))
-            {
-                // Check Security guard
-                Security sec =
-                    hit.GetComponent<Security>() ??
-                    hit.GetComponentInParent<Security>();
-
-                if (sec != null)
-                {
-                    sec.Die();
-                    lastMeleeTime = Time.time;
-                    Debug.Log("Melee hit Security!");
-                    return true;
-                }
-
-                // Check SentinelGuard
-                SentinelGuard sg =
-                    hit.GetComponent<SentinelGuard>() ??
-                    hit.GetComponentInParent<SentinelGuard>();
-
-                if (sg != null)
-                {
-                    sg.Die();
-                    lastMeleeTime = Time.time;
-                    Debug.Log("Melee hit Sentinel!");
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    void ResetMelee()
-    {
-        if (playerAnimator != null)
-            playerAnimator.SetBool("IsMelee", false);
     }
 
     // ─────────────────────────────────────────
@@ -157,12 +90,10 @@ public class PlayerShooting : MonoBehaviour
 
         if (bulletPrefab == null || gunPoint == null)
         {
-            Debug.LogWarning("Missing bulletPrefab " +
-                "or gunPoint");
+            Debug.LogWarning("Missing bulletPrefab or gunPoint");
             return;
         }
 
-        // Spawn bullet
         GameObject bullet = Instantiate(
             bulletPrefab,
             gunPoint.position,
@@ -176,15 +107,13 @@ public class PlayerShooting : MonoBehaviour
         bulletInAir = true;
         currentBullets--;
 
-        // Shoot animation
         if (playerAnimator != null)
         {
             playerAnimator.SetBool("IsShooting", true);
             Invoke(nameof(ResetShoot), 0.5f);
         }
 
-        Debug.Log("Shot fired. Bullets left: "
-            + currentBullets);
+        Debug.Log("Shot fired. Bullets left: " + currentBullets);
     }
 
     void ResetShoot()
@@ -211,16 +140,12 @@ public class PlayerShooting : MonoBehaviour
         hasGun = true;
         currentBullets = maxBullets;
 
-        // Show gun mesh in hand
         if (gunInHand != null)
             gunInHand.SetActive(true);
 
-        // Tell animator player now has gun
         if (playerAnimator != null)
         {
             playerAnimator.SetBool("HasGun", true);
-
-            // Play pickup animation
             playerAnimator.SetBool("IsPickingUp", true);
             Invoke(nameof(ResetPickup), 1f);
         }
